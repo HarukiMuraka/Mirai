@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+*.egg-info/
+
+# Mirai
+logs/
+memory/
+models/
+*.db
+
+# IDE
+.vscode/
+.idea/
+
+# Zips
+Mirai.rar
+
+# Audio
+temp_audio/

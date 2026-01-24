@@ -1,0 +1,20 @@
+# Voz
+pyttsx3>=2.90
+SpeechRecognition>=3.10.0
+
+# Interface
+colorama>=0.4.6
+rich>=13.7.0
+
+# Automação
+pyautogui>=0.9.54
+keyboard>=0.13.5
+psutil>=5.9.6
+
+# Web e Pesquisa
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+
+# Utilitários
+python-dotenv>=1.0.0
+pillow>=10.0.0
