@@ -1,6 +1,6 @@
 {
   "model": {
-    "name": "local",
+    "name": "gemini",
     "type": "rules",
     "temperature": 0.8
   },

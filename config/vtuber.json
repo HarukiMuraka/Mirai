@@ -1,5 +1,5 @@
 {
-  "enabled": true,
+  "enabled": false,
   "engine": "vrm",
   "vmc_port": 39539
 }
