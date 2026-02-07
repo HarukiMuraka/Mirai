@@ -1,338 +1,507 @@
 from modes.base_mode import BaseMode
 from perception.text_input import TextInput
 from actions.app_launcher import AppLauncher
-from research.search_engine import SearchEngine
-from research.background_search import BackgroundSearch
+from research.search_engine_v2 import SearchEngineV2
 from colorama import Fore, Style
 import asyncio
 import pyautogui
 from PIL import Image
 import pytesseract
 from datetime import datetime
+import json
+from pathlib import Path
+import re
 
-# Configurar Tesseract
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-
-class AssistantMode(BaseMode):
-    """Modo Assistente - Simples, Prático e com Análise de Tela"""
+class AssistantModeV2(BaseMode):
+    """Modo Assistente Reimaginado - Inteligente e Proativo"""
     
     def __init__(self, mirai_instance):
         super().__init__(mirai_instance)
         self.app_launcher = AppLauncher()
-        self.search_engine = SearchEngine()
-        self.background_search = BackgroundSearch()
+        self.search_engine = SearchEngineV2()
         
-        # Screenshot
-        self.last_screenshot = None
-        self.last_screenshot_analysis = None
+        # Contexto da sessão
+        self.session_context = {
+            'screenshots_analyzed': [],
+            'searches_performed': [],
+            'apps_opened': [],
+            'last_screen_content': None,
+            'user_focus_area': None
+        }
+        
+        # Configurar Tesseract dinamicamente
+        self._setup_tesseract()
+        
+        # Cache de análises
+        self.analysis_cache = {}
+        
+    def _setup_tesseract(self):
+        """Detecta e configura Tesseract automaticamente"""
+        possible_paths = [
+            r'C:\Program Files\Tesseract-OCR\tesseract.exe',
+            r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
+            '/usr/bin/tesseract',
+            '/usr/local/bin/tesseract'
+        ]
+        
+        for path in possible_paths:
+            if Path(path).exists():
+                pytesseract.pytesseract.tesseract_cmd = path
+                print(f"  ✓ Tesseract encontrado: {path}")
+                return True
+        
+        print(f"  ⚠️  Tesseract não encontrado - OCR desabilitado")
+        return False
     
     async def enter(self):
         """Entra no modo assistente"""
         self.is_active = True
         self.state.set_state("assistant")
-        self.print_mode_header("MODO ASSISTENTE")
+        self.print_mode_header("MODO ASSISTENTE V2 - INTELIGENTE")
         
-        print(f"{Fore.GREEN}Pronta para ajudar! Me diga o que precisa.{Style.RESET_ALL}\n")
+        # Saudação contextual
+        greeting = self._generate_contextual_greeting()
+        print(f"{Fore.GREEN}{greeting}{Style.RESET_ALL}\n")
+        self.speaker.speak(greeting)
         
-        print(f"{Fore.YELLOW}💡 Comandos rápidos:{Style.RESET_ALL}")
-        print(f"  {Fore.CYAN}abrir [app]{Style.RESET_ALL}       - Ex: abrir chrome")
-        print(f"  {Fore.CYAN}pesquisar [tema]{Style.RESET_ALL}  - Ex: pesquisar Python")
-        print(f"  {Fore.CYAN}ver tela{Style.RESET_ALL}          - Captura e analisa sua tela")
-        print(f"  {Fore.CYAN}opinar tela{Style.RESET_ALL}       - Mirai opina sobre sua tela")
-        print(f"  {Fore.CYAN}criar texto{Style.RESET_ALL}       - Ex: criar texto sobre IA")
-        print(f"  {Fore.CYAN}menu{Style.RESET_ALL}              - Ver menu completo")
-        print(f"  {Fore.CYAN}sair{Style.RESET_ALL}              - Voltar\n")
+        # Mostra capacidades
+        self._show_capabilities()
         
         await self.run_assistant_loop()
+    
+    def _generate_contextual_greeting(self) -> str:
+        """Gera saudação baseada em contexto"""
+        hour = datetime.now().hour
+        
+        if hour < 12:
+            period = "Bom dia"
+        elif hour < 18:
+            period = "Boa tarde"
+        else:
+            period = "Boa noite"
+        
+        greetings = [
+            f"{period}! Pronta para ajudar você hoje!",
+            f"{period}! Vamos ser produtivos juntos!",
+            f"{period}! Me diz no que posso ajudar!",
+        ]
+        
+        import random
+        return random.choice(greetings)
+    
+    def _show_capabilities(self):
+        """Mostra capacidades do assistente"""
+        print(f"{Fore.CYAN}{'='*60}")
+        print(f"💡 O QUE EU POSSO FAZER:")
+        print(f"{'='*60}{Style.RESET_ALL}\n")
+        
+        capabilities = [
+            ("🔍 Pesquisa Inteligente", "pesquisar [tema] - Busca e resume para você"),
+            ("📸 Análise de Tela", "analisar tela - Vejo o que você está fazendo"),
+            ("🤖 Assistência Contextual", "me ajuda com isso - Baseado na sua tela"),
+            ("🚀 Abertura de Apps", "abrir [app] - Chrome, VS Code, etc"),
+            ("📝 Criação de Conteúdo", "criar [tipo] sobre [tema]"),
+            ("💬 Conversa Natural", "Só falar comigo normalmente!")
+        ]
+        
+        for title, desc in capabilities:
+            print(f"  {Fore.YELLOW}{title}{Style.RESET_ALL}")
+            print(f"    {Fore.WHITE}{desc}{Style.RESET_ALL}\n")
+        
+        print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}\n")
+        print(f"{Fore.YELLOW}💡 Dica: Eu aprendo com o que você faz! Fique à vontade.{Style.RESET_ALL}\n")
     
     async def exit(self):
         """Sai do modo assistente"""
         self.is_active = False
-        self.background_search.stop_all()
-        print(f"\n{Fore.CYAN}Saindo do modo assistente...{Style.RESET_ALL}")
+        
+        # Salva contexto da sessão
+        self._save_session_context()
+        
+        # Despedida contextual
+        farewell = self._generate_contextual_farewell()
+        print(f"\n{Fore.CYAN}{farewell}{Style.RESET_ALL}")
+        self.speaker.speak(farewell)
     
-    async def process_input(self, user_input):
-        """Processa comando - SIMPLIFICADO"""
-        if not user_input or user_input.strip() == "":
-            return None
+    def _generate_contextual_farewell(self) -> str:
+        """Gera despedida baseada na sessão"""
+        stats = {
+            'screenshots': len(self.session_context['screenshots_analyzed']),
+            'searches': len(self.session_context['searches_performed']),
+            'apps': len(self.session_context['apps_opened'])
+        }
         
-        user_input_lower = user_input.lower().strip()
-        
-        # SAIR
-        if user_input_lower in ['sair', 'exit', 'voltar']:
-            return "EXIT"
-        
-        # MENU
-        if user_input_lower == 'menu':
-            self.show_menu()
-            return None
-        
-        # ABRIR APP
-        if user_input_lower.startswith('abrir '):
-            app_name = user_input[6:].strip()
-            return await self.open_application(app_name)
-        
-        # PESQUISAR
-        if user_input_lower.startswith(('pesquisar ', 'buscar ', 'procurar ')):
-            query = user_input_lower
-            for cmd in ['pesquisar', 'buscar', 'procurar']:
-                query = query.replace(cmd, '', 1).strip()
-            
-            return await self.search_web(query)
-        
-        # PESQUISA EM SEGUNDO PLANO
-        if user_input_lower.startswith('pesquisa segundo plano '):
-            query = user_input[23:].strip()
-            return await self.background_search_start(query)
-        
-        # VER RESULTADOS DA PESQUISA EM SEGUNDO PLANO
-        if user_input_lower == 'ver pesquisas':
-            return self.show_background_results()
-        
-        # VER TELA (NOVO!)
-        if user_input_lower in ['ver tela', 'analisar tela', 'screenshot', 'capturar tela']:
-            return await self.analyze_screen()
-        
-        # OPINAR SOBRE TELA (NOVO!)
-        if user_input_lower in ['opinar tela', 'o que acha', 'comenta tela']:
-            return await self.opinion_on_screen()
-        
-        # CRIAR TEXTO
-        if user_input_lower.startswith(('criar texto', 'escrever', 'texto sobre')):
-            topic = user_input_lower
-            for cmd in ['criar texto sobre', 'criar texto', 'escrever sobre', 'escrever', 'texto sobre']:
-                topic = topic.replace(cmd, '', 1).strip()
-            
-            return await self.create_text(topic)
-        
-        # RESPOSTA GENÉRICA (Ollama responde)
-        response = self.ai.generate_response(user_input, mode="assistant")
-        return response
+        if stats['screenshots'] > 0 or stats['searches'] > 0:
+            return f"Foi produtivo! Analisei {stats['screenshots']} telas e fiz {stats['searches']} pesquisas. Até logo!"
+        else:
+            return "Até logo! Sempre que precisar, me chama!"
     
-    def show_menu(self):
-        """Mostra menu de opções"""
-        print(f"\n{Fore.CYAN}{'='*60}")
-        print(f"{Fore.MAGENTA}📋 MENU DO ASSISTENTE")
-        print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}\n")
-        
-        print(f"{Fore.YELLOW}🖥️ APLICATIVOS:{Style.RESET_ALL}")
-        print("  abrir chrome / firefox / edge / spotify / discord / obs / vscode")
-        
-        print(f"\n{Fore.YELLOW}🔍 PESQUISA:{Style.RESET_ALL}")
-        print("  pesquisar [tema]              - Pesquisa imediata")
-        print("  pesquisa segundo plano [tema] - Pesquisa em background")
-        print("  ver pesquisas                 - Ver resultados das pesquisas")
-        
-        print(f"\n{Fore.YELLOW}📸 ANÁLISE DE TELA (NOVO!):{Style.RESET_ALL}")
-        print("  ver tela                      - Captura e analisa sua tela")
-        print("  opinar tela                   - Mirai opina sobre o que vê")
-        
-        print(f"\n{Fore.YELLOW}✏️ CRIAÇÃO:{Style.RESET_ALL}")
-        print("  criar texto sobre [tema]")
-        print("  escrever sobre [tema]")
-        
-        print(f"\n{Fore.YELLOW}💬 CONVERSA:{Style.RESET_ALL}")
-        print("  Ou simplesmente converse comigo!\n")
-    
-    async def analyze_screen(self):
-        """Captura e analisa a tela - COMPLETO"""
-        print(f"\n{Fore.CYAN}📸 Capturando sua tela...{Style.RESET_ALL}")
-        await asyncio.sleep(1)
+    def _save_session_context(self):
+        """Salva contexto da sessão para aprendizado"""
+        session_file = Path("memory/assistant_sessions.json")
+        session_file.parent.mkdir(exist_ok=True)
         
         try:
-            # Captura screenshot
-            screenshot = pyautogui.screenshot()
-            self.last_screenshot = screenshot
+            # Carrega sessões anteriores
+            if session_file.exists():
+                with open(session_file, 'r', encoding='utf-8') as f:
+                    sessions = json.load(f)
+            else:
+                sessions = []
+            
+            # Adiciona sessão atual
+            sessions.append({
+                'timestamp': datetime.now().isoformat(),
+                'duration': (datetime.now() - self.context.session_start).seconds,
+                'stats': {
+                    'screenshots': len(self.session_context['screenshots_analyzed']),
+                    'searches': len(self.session_context['searches_performed']),
+                    'apps': len(self.session_context['apps_opened'])
+                },
+                'topics': list(set([s['query'] for s in self.session_context['searches_performed']]))
+            })
+            
+            # Mantém apenas últimas 50 sessões
+            sessions = sessions[-50:]
             
             # Salva
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            screenshot_path = f"screenshot_{timestamp}.png"
-            screenshot.save(screenshot_path)
-            
-            print(f"{Fore.GREEN}✓ Screenshot salvo: {screenshot_path}{Style.RESET_ALL}\n")
-            
-            # ANÁLISE BÁSICA
-            width, height = screenshot.size
-            print(f"{Fore.CYAN}📐 Resolução: {width}x{height}{Style.RESET_ALL}")
-            
-            # ANÁLISE DE CORES
-            print(f"{Fore.CYAN}🎨 Analisando cores...{Style.RESET_ALL}")
-            colors = self._analyze_colors(screenshot)
-            dominant_color = self._get_color_name(colors[0][0])
-            
-            print(f"  Cor dominante: {dominant_color}")
-            
-            # BRILHO
-            brightness = self._analyze_brightness(screenshot)
-            brightness_desc = "Escura" if brightness < 30 else ("Média" if brightness < 70 else "Clara")
-            print(f"  Brilho: {brightness_desc} ({brightness:.0f}%)")
-            
-            # OCR - LÊ TEXTO
-            print(f"\n{Fore.CYAN}📝 Lendo texto da tela...{Style.RESET_ALL}")
-            try:
-                text = pytesseract.image_to_string(screenshot, lang='por')
-                words = text.split()
-                
-                if len(words) > 0:
-                    print(f"  Texto encontrado: {len(words)} palavras")
-                    print(f"  Prévia: {' '.join(words[:15])}...")
-                    text_preview = text[:300]
-                else:
-                    print(f"  Nenhum texto detectado")
-                    text_preview = "Sem texto"
-            except Exception as e:
-                print(f"  Erro OCR: {e}")
-                text_preview = "OCR não disponível"
-            
-            # MONTA ANÁLISE
-            analysis = {
-                'resolution': f"{width}x{height}",
-                'dominant_color': dominant_color,
-                'brightness': brightness_desc,
-                'text_preview': text_preview,
-                'colors': colors[:3]
-            }
-            
-            self.last_screenshot_analysis = analysis
-            
-            # CONTEXTO PARA IA
-            context = f"""Análise da tela do usuário:
-- Resolução: {width}x{height}
-- Cor dominante: {dominant_color}
-- Brilho: {brightness_desc}
-- Texto detectado: {text_preview}
-
-Comente brevemente sobre o que vê na tela do usuário."""
-            
-            # IA COMENTA
-            ai_comment = self.ai.generate_response(
-                "O que você vê na minha tela?",
-                mode="assistant"
-            )
-            
-            print(f"\n{Fore.MAGENTA}🌸 Mirai: {ai_comment}{Style.RESET_ALL}\n")
-            
-            return ai_comment
-            
+            with open(session_file, 'w', encoding='utf-8') as f:
+                json.dump(sessions, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            error_msg = f"Ops! Tive problema ao capturar a tela: {e}"
-            print(f"{Fore.RED}{error_msg}{Style.RESET_ALL}")
-            return error_msg
+            print(f"  ⚠️  Erro ao salvar sessão: {e}")
     
-    async def opinion_on_screen(self):
-        """Mirai dá opinião DETALHADA sobre a tela"""
-        if not self.last_screenshot or not self.last_screenshot_analysis:
-            return "Preciso ver sua tela primeiro! Digite 'ver tela' antes!"
+    async def run_assistant_loop(self):
+        """Loop principal do assistente"""
+        text_input = TextInput()
         
-        print(f"\n{Fore.CYAN}🤔 Analisando mais profundamente...{Style.RESET_ALL}")
-        await asyncio.sleep(1)
+        while self.is_active:
+            user_input = text_input.get_input(f"{Fore.GREEN}💬 Você: {Style.RESET_ALL}")
+            
+            if not user_input:
+                continue
+            
+            # Comandos de saída
+            if user_input.lower() in ['sair', 'exit', 'voltar', 'tchau']:
+                break
+            
+            # Processa com contexto
+            print(f"{Fore.CYAN}💭 Pensando...{Style.RESET_ALL}", end='\r')
+            
+            result = await self.process_input_intelligent(user_input)
+            
+            print(" " * 50, end='\r')
+            
+            if result:
+                print(f"\n{Fore.MAGENTA}🌸 Mirai: {result}{Style.RESET_ALL}\n")
+                
+                # Fala resumo
+                summary = self._create_speech_summary(result)
+                await asyncio.to_thread(self.speaker.speak, summary)
+    
+    async def process_input_intelligent(self, user_input: str):
+        """Processa input com inteligência contextual"""
+        user_input_lower = user_input.lower().strip()
+        
+        # Classifica intenção
+        intent = self._classify_intent(user_input_lower)
+        
+        print(f"  [DEBUG] Intent detectado: {intent}")
+        
+        # Roteamento inteligente
+        if intent == 'search':
+            return await self._handle_search_intent(user_input)
+        
+        elif intent == 'screen_analysis':
+            return await self._handle_screen_analysis_intent(user_input)
+        
+        elif intent == 'app_control':
+            return await self._handle_app_control_intent(user_input)
+        
+        elif intent == 'help_with_current':
+            return await self._handle_contextual_help_intent(user_input)
+        
+        elif intent == 'create_content':
+            return await self._handle_content_creation_intent(user_input)
+        
+        else:  # conversation
+            return await self._handle_conversation_intent(user_input)
+    
+    def _classify_intent(self, text: str) -> str:
+        """Classifica intenção do usuário"""
+        # Pesquisa
+        if any(word in text for word in ['pesquisar', 'pesquisa', 'buscar', 'procurar', 'me fala sobre', 'o que é']):
+            return 'search'
+        
+        # Análise de tela
+        if any(word in text for word in ['analisar tela', 'ver tela', 'o que tem na tela', 'capturar', 'screenshot']):
+            return 'screen_analysis'
+        
+        # Controle de apps
+        if any(word in text for word in ['abrir', 'abre', 'fechar', 'fecha', 'iniciar']):
+            return 'app_control'
+        
+        # Ajuda contextual
+        if any(word in text for word in ['me ajuda', 'como faço', 'preciso fazer', 'help']):
+            return 'help_with_current'
+        
+        # Criação de conteúdo
+        if any(word in text for word in ['criar', 'escrever', 'gerar', 'fazer um']):
+            return 'create_content'
+        
+        # Conversa padrão
+        return 'conversation'
+    
+    async def _handle_search_intent(self, query: str):
+        """Pesquisa INTELIGENTE com resumo"""
+        # Extrai query limpa
+        clean_query = self._extract_search_query(query)
+        
+        if not clean_query:
+            return "Não entendi o que você quer pesquisar. Pode reformular?"
+        
+        print(f"\n{Fore.CYAN}🔍 Pesquisando: '{clean_query}'{Style.RESET_ALL}\n")
+        
+        # Pesquisa
+        results = self.search_engine.search(clean_query, max_results=5)
+        
+        if not results:
+            return f"Hmm, não achei nada confiável sobre '{clean_query}'. Quer que eu tente outra fonte?"
+        
+        # Registra pesquisa
+        self.session_context['searches_performed'].append({
+            'query': clean_query,
+            'timestamp': datetime.now().isoformat(),
+            'results_count': len(results)
+        })
+        
+        # Monta resumo INTELIGENTE com IA
+        search_summary = self._create_ai_search_summary(clean_query, results)
+        
+        # Mostra resultados detalhados
+        print(f"{Fore.YELLOW}📚 Resultados encontrados:{Style.RESET_ALL}\n")
+        for i, result in enumerate(results, 1):
+            print(f"{i}. {Fore.CYAN}{result['title']}{Style.RESET_ALL}")
+            print(f"   {result['snippet'][:150]}...")
+            print(f"   🔗 {result['url']}")
+            print(f"   📍 Fonte: {result['source']}\n")
+        
+        return search_summary
+    
+    def _extract_search_query(self, text: str) -> str:
+        """Extrai query de pesquisa do texto"""
+        text_lower = text.lower()
+        
+        # Remove palavras de ação
+        for word in ['pesquisar', 'pesquisa', 'buscar', 'procurar', 'me fala sobre', 'sobre', 'o que é']:
+            text_lower = text_lower.replace(word, '')
+        
+        return text_lower.strip()
+    
+    def _create_ai_search_summary(self, query: str, results: list) -> str:
+        """Cria resumo inteligente dos resultados com IA"""
+        # Monta contexto para IA
+        context = f"Pesquisei sobre '{query}' e encontrei:\n\n"
+        
+        for i, result in enumerate(results[:3], 1):
+            context += f"{i}. {result['title']}\n"
+            context += f"   {result['snippet'][:200]}\n\n"
+        
+        prompt = f"""Baseado nestes resultados de pesquisa, me dê um resumo breve (2-3 frases) sobre '{query}':
+
+{context}
+
+Resumo natural e informativo:"""
+        
+        # Usa IA para resumir
+        if self.ai.use_gemini or self.ai.use_ollama:
+            summary = self.ai.generate_response(prompt, mode="assistant")
+        else:
+            # Fallback: primeiro snippet
+            summary = f"Sobre {query}: {results[0]['snippet'][:200]}"
+        
+        summary += f"\n\n💡 Encontrei {len(results)} fontes. Quer que eu aprofunde em alguma?"
+        
+        return summary
+    
+    async def _handle_screen_analysis_intent(self, query: str):
+        """Análise PROFUNDA de tela com IA"""
+        print(f"\n{Fore.CYAN}📸 Capturando e analisando sua tela...{Style.RESET_ALL}\n")
+        
+        await asyncio.sleep(1)  # Dá tempo para usuário ver
         
         try:
-            # Análise mais profunda
-            screenshot = self.last_screenshot
+            # Captura
+            screenshot = pyautogui.screenshot()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            screenshot_path = f"memory/screenshots/screenshot_{timestamp}.png"
             
-            # OCR completo
-            print(f"{Fore.CYAN}📖 Lendo todo o texto...{Style.RESET_ALL}")
-            full_text = pytesseract.image_to_string(screenshot, lang='por')
+            # Cria diretório
+            Path(screenshot_path).parent.mkdir(parents=True, exist_ok=True)
+            screenshot.save(screenshot_path)
             
-            # Detecta contexto
-            context_hints = []
-            text_lower = full_text.lower()
+            # Análise COMPLETA
+            analysis = await self._deep_screen_analysis(screenshot)
             
-            # Programação
-            if any(word in text_lower for word in ['python', 'def', 'import', 'class', 'function', 'código']):
-                context_hints.append("Código de programação (Python?)")
+            # Registra
+            self.session_context['screenshots_analyzed'].append({
+                'timestamp': datetime.now().isoformat(),
+                'path': screenshot_path,
+                'analysis': analysis
+            })
+            self.session_context['last_screen_content'] = analysis
             
-            # Web/YouTube
-            if any(word in text_lower for word in ['youtube', 'play', 'video', 'subscribe']):
-                context_hints.append("Assistindo vídeo/YouTube")
+            # Monta resposta com IA
+            response = self._create_ai_screen_response(analysis, query)
             
-            # Jogos
-            if any(word in text_lower for word in ['minecraft', 'game', 'play', 'level', 'score']):
-                context_hints.append("Jogando")
-            
-            # Navegador
-            if any(word in text_lower for word in ['chrome', 'firefox', 'http', 'https', 'www']):
-                context_hints.append("Navegador web")
-            
-            # Documento
-            if any(word in text_lower for word in ['documento', 'texto', 'parágrafo', 'título']):
-                context_hints.append("Lendo/editando documento")
-            
-            # Terminal
-            if any(word in text_lower for word in ['terminal', 'cmd', 'bash', 'shell', '$', '>']):
-                context_hints.append("Terminal/Console")
-            
-            # Monta contexto completo
-            analysis = self.last_screenshot_analysis
-            full_context = f"""ANÁLISE COMPLETA DA TELA:
-
-Dados técnicos:
-- Resolução: {analysis['resolution']}
-- Cor dominante: {analysis['dominant_color']}
-- Brilho: {analysis['brightness']}
-
-Texto detectado:
-{full_text[:500]}
-
-Contexto identificado:
-{', '.join(context_hints) if context_hints else 'Uso geral'}
-
-Dê sua opinião DETALHADA sobre o que o usuário está fazendo. Seja específica, 
-faça observações interessantes e dê sugestões se relevante. Use sua personalidade!"""
-            
-            # IA opina (Ollama vai usar toda criatividade aqui)
-            opinion = self.ai.generate_response(
-                "Quero sua opinião detalhada sobre o que estou fazendo na tela!",
-                mode="assistant"
-            )
-            
-            print(f"\n{Fore.MAGENTA}🌸 Opinião da Mirai:{Style.RESET_ALL}")
-            print(f"{Fore.WHITE}{opinion}{Style.RESET_ALL}\n")
-            
-            # Oferece pesquisa
-            if context_hints:
-                print(f"{Fore.YELLOW}💡 Quer que eu pesquise algo relacionado? (s/n){Style.RESET_ALL}")
-                choice = input(f"{Fore.GREEN}> {Style.RESET_ALL}").strip().lower()
-                
-                if choice == 's':
-                    # Pega primeiro contexto como query
-                    query = context_hints[0] if context_hints else full_text[:50]
-                    print(f"\n{Fore.CYAN}🔍 Pesquisando sobre '{query}'...{Style.RESET_ALL}\n")
-                    await self.search_web(query)
-            
-            return opinion
+            return response
             
         except Exception as e:
-            error_msg = f"Não consegui analisar direito! Erro: {e}"
-            print(f"{Fore.RED}{error_msg}{Style.RESET_ALL}")
-            return error_msg
+            print(f"{Fore.RED}❌ Erro: {e}{Style.RESET_ALL}")
+            import traceback
+            traceback.print_exc()
+            return f"Ops! Tive um problema ao capturar a tela: {e}"
     
-    def _analyze_colors(self, image):
-        """Analisa cores dominantes"""
+    async def _deep_screen_analysis(self, screenshot: Image) -> dict:
+        """Análise PROFUNDA da tela"""
+        analysis = {
+            'timestamp': datetime.now().isoformat(),
+            'resolution': f"{screenshot.width}x{screenshot.height}",
+            'text_content': None,
+            'dominant_colors': [],
+            'brightness': 0,
+            'detected_contexts': [],
+            'ui_elements': []
+        }
+        
+        # 1. OCR - Texto
+        try:
+            text = pytesseract.image_to_string(screenshot, lang='por+eng')
+            analysis['text_content'] = text
+            
+            # Detecta contextos do texto
+            analysis['detected_contexts'] = self._detect_contexts_from_text(text)
+        except Exception as e:
+            print(f"  ⚠️  OCR falhou: {e}")
+            analysis['text_content'] = ""
+        
+        # 2. Análise de cores
+        analysis['dominant_colors'] = self._analyze_colors_advanced(screenshot)
+        analysis['brightness'] = self._calculate_brightness(screenshot)
+        
+        # 3. Detecção de UI
+        analysis['ui_elements'] = self._detect_ui_elements(screenshot)
+        
+        return analysis
+    
+    def _detect_contexts_from_text(self, text: str) -> list:
+        """Detecta contextos do texto OCR"""
+        contexts = []
+        text_lower = text.lower()
+        
+        # Programação
+        code_keywords = ['def ', 'class ', 'import ', 'function', 'var ', 'const ', 'let ', 'python', 'javascript']
+        if any(kw in text_lower for kw in code_keywords):
+            contexts.append({
+                'type': 'programming',
+                'confidence': 'high',
+                'details': 'Código de programação detectado'
+            })
+        
+        # Navegação web
+        web_keywords = ['http', 'www', 'chrome', 'firefox', '.com', '.br', 'google']
+        if any(kw in text_lower for kw in web_keywords):
+            contexts.append({
+                'type': 'web_browsing',
+                'confidence': 'high',
+                'details': 'Navegação web'
+            })
+        
+        # Vídeo/streaming
+        video_keywords = ['play', 'pause', 'youtube', 'video', 'netflix', 'twitch']
+        if any(kw in text_lower for kw in video_keywords):
+            contexts.append({
+                'type': 'video',
+                'confidence': 'medium',
+                'details': 'Assistindo vídeo/streaming'
+            })
+        
+        # Documentos
+        doc_keywords = ['parágrafo', 'título', 'documento', 'word', 'page']
+        if any(kw in text_lower for kw in doc_keywords):
+            contexts.append({
+                'type': 'document',
+                'confidence': 'medium',
+                'details': 'Editando/lendo documento'
+            })
+        
+        # Games
+        game_keywords = ['minecraft', 'game', 'level', 'score', 'health', 'mana']
+        if any(kw in text_lower for kw in game_keywords):
+            contexts.append({
+                'type': 'gaming',
+                'confidence': 'high',
+                'details': 'Jogando'
+            })
+        
+        return contexts
+    
+    def _analyze_colors_advanced(self, image: Image) -> list:
+        """Análise avançada de cores"""
+        # Reduz imagem
         small = image.resize((100, 100))
         pixels = list(small.getdata())
         
+        # Agrupa cores
         color_count = {}
         for pixel in pixels:
+            # Agrupa em buckets de 30
             r = (pixel[0] // 30) * 30
             g = (pixel[1] // 30) * 30
             b = (pixel[2] // 30) * 30
             color = (r, g, b)
             color_count[color] = color_count.get(color, 0) + 1
         
+        # Top 5 cores
         sorted_colors = sorted(color_count.items(), key=lambda x: x[1], reverse=True)
-        total = len(pixels)
-        return [(color, (count/total)*100) for color, count in sorted_colors[:5]]
+        total_pixels = len(pixels)
+        
+        result = []
+        for color, count in sorted_colors[:5]:
+            percentage = (count / total_pixels) * 100
+            result.append({
+                'rgb': color,
+                'name': self._get_color_name(color),
+                'percentage': percentage
+            })
+        
+        return result
     
-    def _analyze_brightness(self, image):
+    def _calculate_brightness(self, image: Image) -> float:
         """Calcula brilho médio"""
         gray = image.convert('L')
         pixels = list(gray.getdata())
         return (sum(pixels) / len(pixels) / 255) * 100
     
-    def _get_color_name(self, rgb):
-        """Nomeia cor"""
+    def _detect_ui_elements(self, screenshot: Image) -> list:
+        """Detecta elementos de UI (simplificado)"""
+        elements = []
+        
+        # Baseado em brilho e contraste
+        brightness = self._calculate_brightness(screenshot)
+        
+        if brightness < 30:
+            elements.append('dark_mode')
+        elif brightness > 70:
+            elements.append('light_mode')
+        
+        # Tamanho da tela sugere tipo de uso
+        if screenshot.width >= 1920:
+            elements.append('multi_monitor_or_large_display')
+        
+        return elements
+    
+    def _get_color_name(self, rgb: tuple) -> str:
+        """Nomeia cor RGB"""
         r, g, b = rgb
         
         if r > 200 and g > 200 and b > 200:
@@ -347,107 +516,200 @@ faça observações interessantes e dê sugestões se relevante. Use sua persona
             return "Azul"
         elif r > 200 and g > 200 and b < 100:
             return "Amarelo"
+        elif r > 150 and g > 150 and b > 150:
+            return "Cinza Claro"
         else:
             return "Misto"
     
-    async def open_application(self, app_name):
-        """Abre aplicativo"""
-        print(f"{Fore.CYAN}  🚀 Abrindo {app_name}...{Style.RESET_ALL}")
+    def _create_ai_screen_response(self, analysis: dict, original_query: str) -> str:
+        """Cria resposta inteligente sobre a tela com IA"""
+        # Monta contexto
+        context = f"""Análise da tela do usuário:
+
+TÉCNICO:
+- Resolução: {analysis['resolution']}
+- Cor dominante: {analysis['dominant_colors'][0]['name'] if analysis['dominant_colors'] else 'N/A'}
+- Brilho: {analysis['brightness']:.0f}%
+- Modo: {' '.join(analysis['ui_elements'])}
+
+CONTEXTO DETECTADO:
+{chr(10).join([f"- {c['type']}: {c['details']}" for c in analysis['detected_contexts']])}
+
+TEXTO DETECTADO (amostra):
+{analysis['text_content'][:300] if analysis['text_content'] else 'Nenhum texto detectado'}
+
+Pergunta do usuário: {original_query}
+
+Responda de forma útil e contextual sobre o que o usuário está fazendo:"""
         
-        if self.app_launcher.open_app(app_name):
-            return f"Yatta! Abri o {app_name} pra você!"
+        # Usa IA
+        if self.ai.use_gemini or self.ai.use_ollama:
+            response = self.ai.generate_response(context, mode="assistant")
         else:
-            return f"Eita... Não achei o {app_name}. Tem certeza que tá instalado?"
-    
-    async def search_web(self, query):
-        """Pesquisa na web - IMEDIATA"""
-        if not query:
-            return "Me diz o que você quer pesquisar!"
-        
-        print(f"{Fore.CYAN}  🔍 Pesquisando '{query}'...{Style.RESET_ALL}")
-        
-        results = self.search_engine.search(query, max_results=5)
-        
-        if not results:
-            return "Hmm... Não achei nada sobre isso. Tenta reformular?"
-        
-        response = f"Achei algumas coisas sobre '{query}'!\n\n"
-        for i, result in enumerate(results, 1):
-            response += f"{i}. {result['title']}\n"
-            response += f"   {result['snippet'][:100]}...\n"
-            response += f"   🔗 {result['url']}\n\n"
-        
-        response += "Quer que eu abra algum desses?"
-        return response
-    
-    async def background_search_start(self, query):
-        """Inicia pesquisa em segundo plano"""
-        if not query:
-            return "Me diz o que pesquisar em segundo plano!"
-        
-        print(f"{Fore.YELLOW}  🔄 Iniciando pesquisa em segundo plano...{Style.RESET_ALL}")
-        
-        self.background_search.start_search(query, self.search_engine)
-        
-        return f"Beleza! Tô pesquisando sobre '{query}' em segundo plano. Digite 'ver pesquisas' para ver os resultados!"
-    
-    def show_background_results(self):
-        """Mostra resultados de pesquisas em segundo plano"""
-        results = self.background_search.get_results()
-        
-        if not results:
-            return "Não tem nenhuma pesquisa rolando agora, ne~"
-        
-        response = "📊 Pesquisas em segundo plano:\n\n"
-        
-        for search in results:
-            status = "✅ Completa" if search['completed'] else "⏳ Pesquisando..."
-            response += f"• {search['query']} - {status}\n"
+            # Fallback
+            if analysis['detected_contexts']:
+                main_context = analysis['detected_contexts'][0]
+                response = f"Parece que você está {main_context['details']}! "
+            else:
+                response = "Analisei sua tela. "
             
-            if search['completed'] and search['results']:
-                response += f"  Encontrei {len(search['results'])} resultados!\n"
-                for i, result in enumerate(search['results'][:3], 1):
-                    response += f"  {i}. {result['title']}\n"
+            response += f"Cor dominante: {analysis['dominant_colors'][0]['name']}. "
             
-            response += "\n"
+            if analysis['text_content']:
+                words = len(analysis['text_content'].split())
+                response += f"Detectei {words} palavras de texto."
         
         return response
     
-    async def create_text(self, topic):
-        """Cria texto"""
+    async def _handle_app_control_intent(self, text: str):
+        """Controle de aplicativos"""
+        # Detecta app
+        app_name = self._extract_app_name(text)
+        
+        if not app_name:
+            return "Não entendi qual aplicativo você quer abrir. Pode especificar?"
+        
+        print(f"{Fore.CYAN}🚀 Abrindo {app_name}...{Style.RESET_ALL}")
+        
+        success = self.app_launcher.open_app(app_name)
+        
+        if success:
+            self.session_context['apps_opened'].append({
+                'app': app_name,
+                'timestamp': datetime.now().isoformat()
+            })
+            return f"Pronto! Abri o {app_name} para você!"
+        else:
+            return f"Não consegui abrir {app_name}. Tem certeza que está instalado?"
+    
+    def _extract_app_name(self, text: str) -> str:
+        """Extrai nome do app do texto"""
+        text_lower = text.lower()
+        
+        # Remove palavras de ação
+        for word in ['abrir', 'abre', 'abra', 'iniciar', 'inicia']:
+            text_lower = text_lower.replace(word, '')
+        
+        app_name = text_lower.strip()
+        
+        # Mapeia variações comuns
+        app_map = {
+            'google chrome': 'chrome',
+            'vs code': 'vscode',
+            'visual studio code': 'vscode',
+            'bloco de notas': 'notepad',
+            'explorador de arquivos': 'explorer'
+        }
+        
+        return app_map.get(app_name, app_name)
+    
+    async def _handle_contextual_help_intent(self, query: str):
+        """Ajuda baseada no contexto atual da tela"""
+        # Verifica se tem análise de tela recente
+        if not self.session_context.get('last_screen_content'):
+            return "Para eu te ajudar melhor, deixa eu ver sua tela primeiro! Diga 'analisar tela'."
+        
+        last_analysis = self.session_context['last_screen_content']
+        
+        # Monta contexto para IA
+        help_context = f"""O usuário está pedindo ajuda: "{query}"
+
+Contexto da tela atual:
+{json.dumps(last_analysis, indent=2, ensure_ascii=False)}
+
+Forneça ajuda específica e prática baseada no que ele está fazendo:"""
+        
+        # IA responde
+        response = self.ai.generate_response(help_context, mode="assistant")
+        
+        return response
+    
+    async def _handle_content_creation_intent(self, query: str):
+        """Criação de conteúdo"""
+        # Extrai tipo e tema
+        content_type, topic = self._parse_content_request(query)
+        
         if not topic:
-            return "Me diz sobre o que você quer que eu escreva!"
+            return "Sobre o que você quer que eu crie?"
         
-        print(f"{Fore.CYAN}  ✏️ Criando texto sobre '{topic}'...{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}✍️  Criando {content_type} sobre '{topic}'...{Style.RESET_ALL}\n")
         
-        # Ollama gera o texto
-        text = self.ai.generate_response(
-            f"Escreva um texto curto (3-4 parágrafos) sobre: {topic}. Seja informativo mas mantenha tom casual.",
-            mode="assistant"
-        )
+        # Prompt para criação
+        create_prompt = f"Crie um {content_type} sobre: {topic}. Seja criativo e útil!"
         
-        return f"Sobre {topic}:\n\n{text}\n\nPronto! O que achou?"
+        content = self.ai.generate_response(create_prompt, mode="assistant")
+        
+        # Salva em arquivo
+        filename = self._save_created_content(content_type, topic, content)
+        
+        return f"Pronto! Criei um {content_type} sobre {topic}.\n\n{content}\n\n💾 Salvo em: {filename}"
     
-    async def run_assistant_loop(self):
-        """Loop principal do assistente"""
-        text_input = TextInput()
+    def _parse_content_request(self, text: str):
+        """Extrai tipo e tema de requisição de conteúdo"""
+        text_lower = text.lower()
         
-        while self.is_active:
-            user_input = text_input.get_input(f"{Fore.GREEN}> {Style.RESET_ALL}")
-            
-            if not user_input:
-                continue
-            
-            result = await self.process_input(user_input)
-            
-            if result == "EXIT":
-                break
-            
-            if result:
-                print(f"\n{Fore.MAGENTA}Mirai: {result}{Style.RESET_ALL}\n")
-                
-                # Fala apenas primeiras 2 frases
-                sentences = result.split('.')[:2]
-                speech_text = '.'.join(sentences) + '.'
-                if len(speech_text) < 200:
-                    self.speaker.speak_async(speech_text)
+        # Tipos
+        if 'resumo' in text_lower:
+            content_type = 'resumo'
+        elif 'lista' in text_lower:
+            content_type = 'lista'
+        elif 'roteiro' in text_lower:
+            content_type = 'roteiro'
+        elif 'email' in text_lower or 'e-mail' in text_lower:
+            content_type = 'email'
+        else:
+            content_type = 'texto'
+        
+        # Remove palavras de ação
+        for word in ['criar', 'escrever', 'fazer', 'gerar', 'sobre', content_type]:
+            text_lower = text_lower.replace(word, '')
+        
+        topic = text_lower.strip()
+        
+        return content_type, topic
+    
+    def _save_created_content(self, content_type: str, topic: str, content: str) -> str:
+        """Salva conteúdo criado"""
+        # Cria filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_topic = re.sub(r'[^\w\s-]', '', topic).strip().replace(' ', '_')
+        filename = f"memory/created_content/{content_type}_{safe_topic}_{timestamp}.txt"
+        
+        # Cria diretório
+        Path(filename).parent.mkdir(parents=True, exist_ok=True)
+        
+        # Salva
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(f"# {content_type.upper()}: {topic}\n")
+            f.write(f"Criado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n\n")
+            f.write(content)
+        
+        return filename
+    
+    async def _handle_conversation_intent(self, text: str):
+        """Conversa casual"""
+        # Adiciona contexto da sessão se relevante
+        enhanced_text = text
+        
+        if self.session_context['last_screen_content']:
+            enhanced_text = f"[Contexto: usuário estava {self.session_context['last_screen_content'].get('detected_contexts', [{}])[0].get('details', 'usando computador') if self.session_context['last_screen_content'].get('detected_contexts') else 'usando computador'}]\n\n{text}"
+        
+        response = self.ai.generate_response(enhanced_text, mode="assistant", enable_search=False)
+        
+        return response
+    
+    def _create_speech_summary(self, text: str, max_sentences: int = 2) -> str:
+        """Cria resumo para fala"""
+        # Pega primeiras N sentenças
+        sentences = text.split('.')[:max_sentences]
+        summary = '.'.join(sentences) + '.'
+        
+        # Limita tamanho
+        if len(summary) > 200:
+            summary = summary[:197] + "..."
+        
+        return summary
+    
+    async def process_input(self, user_input):
+        """Método herdado - mantido para compatibilidade"""
+        return await self.process_input_intelligent(user_input)
