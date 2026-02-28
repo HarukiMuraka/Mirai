@@ -1,26 +1,40 @@
+# Criar/atualizar .gitignore
+cat > .gitignore << 'EOF'
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+env/
 venv/
-*.egg-info/
-
-# Mirai
-logs/
-memory/
-models/
-*.db
+ENV/
+roms/
+.venv
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Zips
-Mirai.rar
+# Mirai específico
+data/cache/*
+data/logs/*
+!data/.gitkeep
+!data/*/.gitkeep
 
-# Audio
+config/gemini_key.txt
+config/local_*.json
+.env
+
+# Temporários
+*.tmp
+*.log
+temp/
 temp_audio/
 
-# emuladores
-roms/
+# Sistema
+.DS_Store
+Thumbs.db
+EOF
