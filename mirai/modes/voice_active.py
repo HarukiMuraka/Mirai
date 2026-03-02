@@ -1,4 +1,4 @@
-from modes.base_mode import BaseMode
+from mirai.modes.base_mode import BaseMode
 from colorama import Fore, Style
 import speech_recognition as sr
 import asyncio

@@ -1,5 +1,5 @@
-from modes.base_mode import BaseMode
-from perception.text_input import TextInput
+from mirai.modes.base_mode import BaseMode
+from mirai.perception.text_input import TextInput
 from colorama import Fore, Style
 import asyncio
 import os

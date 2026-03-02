@@ -1,4 +1,4 @@
-from modes.base_mode import BaseMode
+from mirai.modes.base_mode import BaseMode
 import pyautogui
 import time
 from PIL import Image

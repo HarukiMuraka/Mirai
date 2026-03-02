@@ -1,6 +1,6 @@
-from modes.base_mode import BaseMode
+from mirai.modes.base_mode import BaseMode
 from colorama import Fore, Style
-from perception.text_input import TextInput
+from mirai.perception.text_input import TextInput
 import asyncio
 from datetime import datetime
 

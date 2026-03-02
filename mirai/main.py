@@ -1,19 +1,19 @@
-import sys
 import asyncio
-from colorama import init, Fore, Style
+import sys
+import os
 from pathlib import Path
+from colorama import init, Fore, Style
 
 # Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 # Imports otimizados
-from interface.menu import MenuPrincipal
-from core.ai_engine import MiraiAI
-from core.state_machine import StateMachine
-from core.context_manager import ContextManager
-from vtuber.vrm_engine import VRMEngine as VTuberEngine
-from actions.speaker import Speaker
-
+from mirai.core.ai_engine import MiraiAI
+from mirai.core.context_manager import ContextManager
+from mirai.actions.speaker import Speaker
+from mirai.actions.app_launcher import AppLauncher
+from mirai.interface.menu import MenuPrincipal
+from mirai.perception.text_input import TextInput
 init(autoreset=True)
 
 

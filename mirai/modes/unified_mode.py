@@ -574,7 +574,7 @@ Seja detalhada e útil!"""
         print(f"\n{Fore.GREEN}💬 Modo texto ativado!{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}(Digite 'sair' para voltar){Style.RESET_ALL}\n")
         
-        from perception.text_input import TextInput
+        from mirai.perception.text_input import TextInput
         text_input = TextInput()
         
         while True:
@@ -591,7 +591,7 @@ Seja detalhada e útil!"""
         """Modo conversa por voz"""
         print(f"\n{Fore.GREEN}🎤 Modo voz ativado!{Style.RESET_ALL}\n")
         
-        from perception.voice_listener import VoiceListener
+        from mirai.perception.voice_listener import VoiceListener
         voice = VoiceListener()
         
         if not voice.initialize():
@@ -626,19 +626,19 @@ Seja detalhada e útil!"""
     
     async def gamer_mode(self):
         """Modo gamer com RetroArch + Citra"""
-        from modes.gamer import GamerMode
+        from mirai.modes.gamer import GamerMode
         mode = GamerMode(self.mirai)
         await mode.enter()
     
     async def streamer_mode(self):
         """Modo streamer"""
-        from modes.streamer import StreamerMode
+        from mirai.modes.streamer import StreamerMode
         mode = StreamerMode(self.mirai)
         await mode.enter()
     
     async def assistant_mode(self):
         """Modo assistente"""
-        from modes.assistant import AssistantMode
+        from mirai.modes.assistant import AssistantMode
         mode = AssistantMode(self.mirai)
         await mode.enter()
     
@@ -648,7 +648,7 @@ Seja detalhada e útil!"""
         query = input(f"{Fore.GREEN}O que você quer pesquisar? {Style.RESET_ALL}")
         
         if query:
-            from research.search_engine import SearchEngine
+            from mirai.research.search_engine import SearchEngine
             search = SearchEngine()
             results = search.search(query, max_results=5)
             

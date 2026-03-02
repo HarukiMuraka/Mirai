@@ -3,8 +3,8 @@ import asyncio
 import platform
 
 
-class MainMenuPro:
-    """Menu Principal Profissional da Mirai v2.0"""
+class MenuPrincipal:
+    """Menu Principal"""
     
     def __init__(self, mirai_instance):
         self.mirai = mirai_instance
@@ -78,15 +78,15 @@ class MainMenuPro:
     async def show(self):
         """Mostra e gerencia o menu"""
         # Importa modos
-        from modes.conversation import ConversationModeImproved
-        from modes.assistant import AssistantModePro
-        from modes.voice_active import VoiceActivePro
-        from modes.gamer import GamerMode
-        from modes.observer import ObserverMode
+        from mirai.modes.conversation import ConversationModeImproved
+        from mirai.modes.assistant import AssistantModePro
+        from mirai.modes.voice_active import VoiceActivePro
+        from mirai.modes.gamer import GamerMode
+        from mirai.modes.observer import ObserverMode
         
         # Importa streamer se disponível
         try:
-            from modes.streamer import StreamerMode
+            from mirai.modes.streamer import StreamerMode
             STREAMER_OK = True
         except:
             STREAMER_OK = False
@@ -363,7 +363,7 @@ class MainMenuPro:
         """Testa microfone"""
         print(f"\n{Fore.CYAN}🎤 TESTE DE MICROFONE{Style.RESET_ALL}\n")
         
-        from perception.voice_listener import VoiceListener
+        from mirai.perception.voice_listener import VoiceListener
         
         voice = VoiceListener()
         
@@ -409,7 +409,7 @@ class MainMenuPro:
         
         # Microfone
         print(f"\n{Fore.YELLOW}[3/5] Testando microfone...{Style.RESET_ALL}")
-        from perception.voice_listener import VoiceListener
+        from mirai.perception.voice_listener import VoiceListener
         voice = VoiceListener()
         if voice.initialize():
             print(f"  🟢 Microfone OK")
@@ -504,7 +504,7 @@ class MainMenuPro:
         if self.mirai.vtuber:
             await self.mirai.vtuber.stop()
         
-        from vtuber.vrm_engine import VRMEngine
+        from mirai.vtuber.vrm_engine import VRMEngine
         self.mirai.vtuber = VRMEngine()
         await self.mirai.vtuber.initialize()
         

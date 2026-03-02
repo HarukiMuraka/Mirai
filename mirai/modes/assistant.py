@@ -1,7 +1,7 @@
-from modes.base_mode import BaseMode
-from perception.text_input import TextInput
-from actions.app_launcher import AppLauncher
-from research.search_engine_v2 import SearchEngineV2
+from mirai.modes.base_mode import BaseMode
+from mirai.perception.text_input import TextInput
+from mirai.actions.app_launcher import AppLauncher
+from mirai.research.search_engine_v2 import SearchEngineV2
 from colorama import Fore, Style
 import asyncio
 import pyautogui

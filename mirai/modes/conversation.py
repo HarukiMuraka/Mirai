@@ -1,5 +1,5 @@
-from modes.base_mode import BaseMode
-from perception.text_input import TextInput
+from mirai.modes.base_mode import BaseMode
+from mirai.perception.text_input import TextInput
 from colorama import Fore, Style
 import asyncio
 import time
@@ -99,7 +99,7 @@ class ConversationMode(BaseMode):
     async def voice_conversation(self):
         """Conversa por voz"""
         try:
-            from perception.voice_listener import VoiceListener
+            from mirai.perception.voice_listener import VoiceListener
         except ImportError:
             print(f"{Fore.RED}❌ SpeechRecognition não instalado!{Style.RESET_ALL}")
             print(f"{Fore.YELLOW}Instale: pip install SpeechRecognition{Style.RESET_ALL}\n")

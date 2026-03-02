@@ -29,8 +29,8 @@ class ModoPrincipal:
         self.is_active: bool = False
         
         # Importa dinamicamente
-        from perception.text_input import TextInput
-        from perception.voice_listener import VoiceListener
+        from mirai.perception.text_input import TextInput
+        from mirai.perception.voice_listener import VoiceListener
         
         self.text_input = TextInput()
         self.voice_listener = VoiceListener()
