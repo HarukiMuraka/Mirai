@@ -1,110 +1,121 @@
 @echo off
 chcp 65001 >nul
 color 0D
+title Mirai - Assistente VTuber
 
 echo.
-echo ╔════════════════════════════════════════╗
-echo ║                                        ║
-echo ║            🌸 MIRAI 🌸                 ║
-echo ║         Assistente Virtual             ║
-echo ║                                        ║
-echo ╚════════════════════════════════════════╝
+echo  ╔══════════════════════════════════════════╗
+echo  ║            🌸  MIRAI  🌸                 ║
+echo  ║       IA VTuber Assistant v2.0           ║
+echo  ╚══════════════════════════════════════════╝
 echo.
 
-echo [1/4] Verificando Ollama...
-
-:: Testa se Ollama está instalado
-where ollama >nul 2>nul
+:: ─────────────────────────────────────────────
+:: [1] Verifica Python
+:: ─────────────────────────────────────────────
+echo [1/5] Verificando Python...
+python --version >nul 2>nul
 if %errorlevel% neq 0 (
-    echo ❌ Ollama não está instalado!
-    echo.
-    echo Baixe em: https://ollama.ai
-    echo.
-    pause
-    exit /b 1
+    echo  ❌ Python não encontrado!
+    echo     Baixe em: https://www.python.org/downloads/
+    pause & exit /b 1
 )
-
-echo ✓ Ollama encontrado!
+echo  ✓ Python OK
 echo.
 
-echo [2/4] Iniciando servidor Ollama...
-
-:: Inicia Ollama serve em janela separada
-start "Ollama Server - NÃO FECHE ESTA JANELA!" /MIN ollama serve
-
-echo ✓ Servidor iniciado!
-echo.
-
-echo [3/4] Aguardando Ollama inicializar (5 segundos)...
-timeout /t 5 /nobreak >nul
-
-echo ✓ Pronto!
-echo.
-
-echo [4/4] Iniciando Mirai...
-echo.
-
-:: Muda para diretório da Mirai
+:: ─────────────────────────────────────────────
+:: [2] Ambiente virtual
+:: ─────────────────────────────────────────────
 cd /d "%~dp0"
 
-:: Ativa venv
-if exist "venv\Scripts\activate.bat" (
-    call venv\Scripts\activate.bat
-    echo ✓ Ambiente virtual ativado!
-    echo.
-) else (
-    echo ⚠️ Ambiente virtual não encontrado!
-    echo    Criando venv...
+echo [2/5] Ambiente virtual...
+if not exist "venv\Scripts\activate.bat" (
+    echo  Criando venv...
     python -m venv venv
-    call venv\Scripts\activate.bat
-    echo ✓ Ambiente criado e ativado!
-    echo.
+    if %errorlevel% neq 0 (
+        echo  ❌ Falha ao criar venv!
+        pause & exit /b 1
+    )
 )
+call venv\Scripts\activate.bat
+echo  ✓ Venv ativo
+echo.
 
-:: Verifica dependências
-echo Verificando dependências...
-python -c "import gtts, pygame, requests, colorama, pytesseract, bs4" 2>nul
+:: ─────────────────────────────────────────────
+:: [3] Dependências core
+:: ─────────────────────────────────────────────
+echo [3/5] Verificando dependências...
+python -c "import colorama, requests, bs4, gtts, pygame" >nul 2>nul
 if %errorlevel% neq 0 (
-    echo.
-    echo ⚠️ Instalando dependências faltantes...
-    pip install -q gtts pygame requests colorama pytesseract pillow beautifulsoup4 lxml
-    echo ✓ Dependências instaladas!
+    echo  Instalando dependências core...
+    pip install -q colorama requests beautifulsoup4 python-dotenv Pillow gTTS pygame SpeechRecognition pyautogui keyboard psutil rich
+    if %errorlevel% neq 0 (
+        echo  ⚠️ Algumas dependências podem ter falhado - continuando...
+    )
 )
-
-echo.
-echo ╔════════════════════════════════════════╗
-echo ║                                        ║
-echo ║     ✨ MIRAI ESTÁ INICIANDO ✨         ║
-echo ║                                        ║
-echo ╚════════════════════════════════════════╝
-echo.
-echo IMPORTANTE:
-echo • Ollama está rodando em segundo plano
-echo • NÃO FECHE a janela "Ollama Server"
-echo • Se fechar, a IA para de funcionar
-echo.
-echo ═══════════════════════════════════════════
+echo  ✓ Dependências OK
 echo.
 
-:: Inicia Mirai
+:: ─────────────────────────────────────────────
+:: [4] Ollama (opcional)
+:: ─────────────────────────────────────────────
+echo [4/5] Verificando Ollama (opcional)...
+where ollama >nul 2>nul
+if %errorlevel% equ 0 (
+    echo  ✓ Ollama encontrado - iniciando servidor...
+    start "Ollama Server" /MIN ollama serve
+    timeout /t 3 /nobreak >nul
+) else (
+    echo  ⚠️ Ollama não instalado ^(usando API online ou modo offline^)
+    echo     Para instalar: https://ollama.ai
+)
+echo.
+
+:: ─────────────────────────────────────────────
+:: [5] Verifica config de IA
+:: ─────────────────────────────────────────────
+echo [5/5] Verificando configuração de IA...
+if not exist "config\ai.json" (
+    echo  ⚠️ config\ai.json não encontrado - será criado com padrões
+)
+if exist "config\gemini_key.txt" (
+    echo  ✓ Chave Gemini encontrada
+) else if exist "config\claude_key.txt" (
+    echo  ✓ Chave Claude encontrada
+) else if exist "config\openai_key.txt" (
+    echo  ✓ Chave OpenAI encontrada
+) else (
+    echo  ℹ️ Nenhuma chave de API configurada ^- usando Ollama ou modo offline
+    echo     Adicione sua chave em config\gemini_key.txt, claude_key.txt ou openai_key.txt
+)
+echo.
+
+:: ─────────────────────────────────────────────
+:: INICIA MIRAI
+:: ─────────────────────────────────────────────
+echo  ╔══════════════════════════════════════════╗
+echo  ║        ✨ INICIANDO MIRAI ✨             ║
+echo  ╚══════════════════════════════════════════╝
+echo.
+
 python main.py
 
 echo.
-echo ═══════════════════════════════════════════
-echo.
-echo Mirai encerrada!
+echo  ═══════════════════════════════════════════
+echo  Mirai encerrada!
 echo.
 
-:: Pergunta se quer fechar Ollama
-echo Fechar servidor Ollama? (S/N)
-choice /c SN /n /m "Escolha: "
-
-if %errorlevel% equ 1 (
-    taskkill /f /im ollama.exe >nul 2>nul
-    echo ✓ Ollama encerrado!
+:: Fecha Ollama se estava rodando
+tasklist /fi "imagename eq ollama.exe" 2>nul | find /i "ollama.exe" >nul
+if %errorlevel% equ 0 (
+    choice /c SN /n /m " Fechar servidor Ollama? (S/N): "
+    if %errorlevel% equ 1 (
+        taskkill /f /im ollama.exe >nul 2>nul
+        echo  ✓ Ollama encerrado!
+    )
 )
 
 echo.
-echo Até logo! 🌸
+echo  Até logo! 🌸
 echo.
 pause

@@ -1,144 +1,53 @@
-# ============================================================================
-# MIRAI - Dependências Completas
-# ============================================================================
-# Versão: 2.0.0
-# Python: 3.10+
+# ============================================================
+# MIRAI v2.0 — requirements.txt
+# Python 3.10+
+# ============================================================
 
-# ----------------------------------------------------------------------------
-# CORE - Essenciais para funcionamento básico
-# ----------------------------------------------------------------------------
+# ── CORE (obrigatórios) ──────────────────────────────────────
 colorama>=0.4.6
 requests>=2.31.0
 beautifulsoup4>=4.12.2
 python-dotenv>=1.0.0
 Pillow>=10.0.0
 
-# ----------------------------------------------------------------------------
-# VOZ - Text-to-Speech e Speech Recognition
-# ----------------------------------------------------------------------------
-# gTTS: Google Text-to-Speech (OBRIGATÓRIO - sistema de voz principal)
+# ── VOZ ─────────────────────────────────────────────────────
 gTTS>=2.4.0
-
-# pygame: Reprodução de áudio (OBRIGATÓRIO para TTS funcionar)
 pygame>=2.5.0
-
-# SpeechRecognition: Reconhecimento de voz
 SpeechRecognition>=3.10.0
+# PyAudio — instale manualmente se der erro:
+#   Windows: pip install pipwin && pipwin install pyaudio
+#   Linux:   sudo apt install python3-pyaudio
+#   macOS:   brew install portaudio && pip install pyaudio
 
-# PyAudio: Backend para microfone (Windows: pode precisar instalar manualmente)
-# Windows: baixe wheel em https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio
-# Linux: apt-get install python3-pyaudio
-# macOS: brew install portaudio && pip install pyaudio
-# pyaudio>=0.2.13
-
-# edge-tts: TTS de alta qualidade da Microsoft (OPCIONAL - melhor que gTTS)
-# Descomente se quiser usar:
-# edge-tts>=6.1.0
-
-# ----------------------------------------------------------------------------
-# AUTOMAÇÃO - Controle de sistema e apps
-# ----------------------------------------------------------------------------
+# ── AUTOMAÇÃO ────────────────────────────────────────────────
 pyautogui>=0.9.54
 keyboard>=0.13.5
 psutil>=5.9.6
 
-# ----------------------------------------------------------------------------
-# OCR - Reconhecimento de texto em imagens (OPCIONAL)
-# ----------------------------------------------------------------------------
-# pytesseract: Wrapper Python para Tesseract
-# REQUER Tesseract instalado no sistema:
-# - Windows: https://github.com/UB-Mannheim/tesseract/wiki
-# - Linux: apt-get install tesseract-ocr tesseract-ocr-por
-# - macOS: brew install tesseract tesseract-lang
-# pytesseract>=0.3.10
+# ── INTERFACE ────────────────────────────────────────────────
+rich>=13.7.0
 
-# ----------------------------------------------------------------------------
-# AI - Modelos de linguagem (OPCIONAL)
-# ----------------------------------------------------------------------------
-# Gemini (Google): OPCIONAL - para IA avançada
-# Requer chave API: https://makersuite.google.com/app/apikey
-# google-generativeai>=0.3.0
+# ── IA — PROVIDERS (descomente o que usar) ───────────────────
 
-# Ollama: Roda localmente (RECOMENDADO para privacidade)
-# Instale separadamente: https://ollama.ai/download
-# Nenhuma biblioteca Python necessária - usa apenas requests
+# Google Gemini
+# google-generativeai>=0.5.0
 
-# ----------------------------------------------------------------------------
-# VTUBER - Avatar virtual (OPCIONAL)
-# ----------------------------------------------------------------------------
-# pythonosc: Para comunicação VMC Protocol com VSeeFace
-# Descomente se quiser usar VTuber:
+# Anthropic Claude (opcional — usa requests diretamente)
+# anthropic>=0.25.0
+
+# OpenAI (opcional — usa requests diretamente)
+# openai>=1.0.0
+
+# ── VTUBER (opcional) ────────────────────────────────────────
 # pythonosc>=1.8.0
 
-# ----------------------------------------------------------------------------
-# STREAMING - Integração com plataformas (OPCIONAL)
-# ----------------------------------------------------------------------------
-# YouTube Live Chat
-# pytchat>=0.5.0
+# ── STREAMING (opcional) ─────────────────────────────────────
+# pytchat>=0.5.0        # YouTube Live Chat
+# twitchio>=2.0.0       # Twitch
 
-# Twitch
-# twitchio>=2.0.0
+# ── IMAGEM (opcional) ────────────────────────────────────────
+# diffusers>=0.24.0     # Stable Diffusion local via Python
+# torch>=2.0.0          # requer GPU para performance
 
-# ----------------------------------------------------------------------------
-# JOGOS - RetroArch e emuladores (OPCIONAL)
-# ----------------------------------------------------------------------------
-# Nenhuma biblioteca Python necessária
-# RetroArch instalado separadamente
-
-# ----------------------------------------------------------------------------
-# DESENVOLVIMENTO - Ferramentas para devs (OPCIONAL)
-# ----------------------------------------------------------------------------
-# rich: Terminal com cores e formatação bonita
-# rich>=13.7.0
-
-# black: Formatador de código
-# black>=23.0.0
-
-# pytest: Testes
-# pytest>=7.4.0
-
-# ----------------------------------------------------------------------------
-# NOTAS DE INSTALAÇÃO
-# ----------------------------------------------------------------------------
-
-# WINDOWS:
-# --------
-# 1. Instale Python 3.10+ de python.org
-# 2. pip install -r requirements.txt
-# 3. Para pytesseract (OPCIONAL):
-#    - Baixe Tesseract: https://github.com/UB-Mannheim/tesseract/wiki
-#    - Adicione ao PATH ou configure caminho no código
-# 4. Para PyAudio (se der erro):
-#    - Baixe wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio
-#    - pip install caminho/para/PyAudio.whl
-
-# LINUX:
-# ------
-# 1. sudo apt update
-# 2. sudo apt install python3-pip python3-venv
-# 3. sudo apt install python3-pyaudio tesseract-ocr tesseract-ocr-por
-# 4. python3 -m venv venv
-# 5. source venv/bin/activate
-# 6. pip install -r requirements.txt
-
-# MACOS:
-# ------
-# 1. brew install python3
-# 2. brew install portaudio tesseract tesseract-lang
-# 3. pip3 install -r requirements.txt
-
-# ----------------------------------------------------------------------------
-# INSTALAÇÃO RÁPIDA (mínimo necessário)
-# ----------------------------------------------------------------------------
-# pip install colorama requests beautifulsoup4 python-dotenv Pillow gTTS pygame SpeechRecognition pyautogui keyboard psutil
-
-# ----------------------------------------------------------------------------
-# INSTALAÇÃO COMPLETA (tudo)
-# ----------------------------------------------------------------------------
-# Descomente TODAS as linhas acima e:
-# pip install -r requirements.txt
-
-# ----------------------------------------------------------------------------
-# VERIFICAÇÃO
-# ----------------------------------------------------------------------------
-# Execute: python -c "import colorama, requests, gTTS, pygame; print('✓ Core OK')"
+# ── INSTALAÇÃO RÁPIDA (core + voz) ──────────────────────────
+# pip install colorama requests beautifulsoup4 python-dotenv Pillow gTTS pygame SpeechRecognition pyautogui keyboard psutil rich
